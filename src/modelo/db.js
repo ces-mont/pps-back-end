@@ -13,6 +13,7 @@ const Usuarios = sequelize.define('Usuario',{
     rol:{type: DataTypes.STRING(4)},
     dni:{type: DataTypes.INTEGER},
     telefono:{type: DataTypes.STRING(10)},
+    contrasenia:{type: DataTypes.STRING(255), allowNull:false}
 },{timestamps:false, tableName:'usuariosLab'});
 
 const Salas = sequelize.define('Sala',{

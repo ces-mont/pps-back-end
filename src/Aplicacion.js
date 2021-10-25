@@ -2,6 +2,7 @@ const express = require('express');
 const morgan = require('morgan');
 const path = require('path');
 const RutasUsuarios = require('./rutas/Usuarios');
+const RutasSalas = require('./rutas/Salas');
 
 class Aplicacion{
     constructor(){
@@ -20,10 +21,24 @@ class Aplicacion{
         this.app.use(morgan('dev'));
         this.app.use(express.urlencoded({extended:false}));
         this.app.use(express.json());
+        this.app.use(this.manejarCors);
+    }
+    manejarCors =(req,res,next)=>{
+        res.set('Access-Control-Allow-Origin','*');
+        if(req.method==='OPTIONS' && req.headers['origin'] && req.headers['access-control-request-method']){
+            res.set('Access-Control-Allow-Methods','POST,DELETE,PUT');
+            res.set('Access-Control-Allow-Headers','Content-Type, Authorization');
+            res.status(200).send();
+            return;
+        }else{
+            next()
+        }
     }
     enrutar = ()=>{
         const rutasUsuarios = new RutasUsuarios();
-        this.app.use('/usuarios',rutasUsuarios.router)
+        const rutasSalas = new RutasSalas();
+        this.app.use('/usuarios', rutasUsuarios.router);
+        this.app.use('/salas', rutasSalas.router);
     }
 }
 
