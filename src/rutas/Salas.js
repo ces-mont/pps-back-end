@@ -94,6 +94,23 @@ class RutasSalas {
             return res.status(error.code ||500).send();
         }
     }
+    crearSala = async (req,res)=>{
+        try { 
+            let sala = await Salas.create({
+                descripcionCorta:req.body.descripcionCorta,
+                descripcionLarga:req.body.descripcionLarga,
+                tipo:req.body.tipo,
+                ubicacion:req.body.ubicacion,
+                urlImagen:req.body.urlImagen
+            });       
+            console.log('POST->SALAS: '+JSON.stringify(sala))  
+            res.status(201).send({ msj: 'sala creada' });         
+        } catch (error) {
+            console.log('error: '+error)
+            res.statusMessage = error.msj;
+            return res.status(error.code||500).send();              
+        }
+    }
     actualizar = async(req,res)=>{
         console.log('PUT->/SALA -->campos: ', req.body)
         try {
@@ -116,11 +133,24 @@ class RutasSalas {
             return res.status(error.code||500).send();            
         }
     }
+    eliminar = async(req,res)=>{
+        try {            
+            console.log('->DELETE->idSala ',req.body.idSala)
+            let borrada = Salas.destroy({where:{idSala:req.body.idSala}})
+            res.status(201).send({msj:'sala borrada con éxito'});
+        } catch (error) {    
+            console.log('error: '+error)
+            res.statusMessage = error.msj;
+            return res.status(error.code||500).send();            
+        }
+    }
     rutas(){
         this.router.get('/',this.getSalas);
+        this.router.post('/',autenticacionjwt,this.crearSala);
+        this.router.put('/',autenticacionjwt,this.actualizar);
+        this.router.delete('/',autenticacionjwt,this.eliminar);
         this.router.get('/estado/:idsala/:dia',autenticacionjwt,this.getEstado);
         this.router.post('/reservar',autenticacionjwt,this.reservarSala);
-        this.router.put('/',autenticacionjwt,this.actualizar);
     }
 }
 

@@ -3,6 +3,9 @@ const morgan = require('morgan');
 const path = require('path');
 const RutasUsuarios = require('./rutas/Usuarios');
 const RutasSalas = require('./rutas/Salas');
+const RutasCalendario = require('./rutas/Calendario');
+const {pasaporteJwt} = require ('./middlewares/pasaporte');
+const passport = require('passport');
 
 class Aplicacion{
     constructor(){
@@ -22,6 +25,8 @@ class Aplicacion{
         this.app.use(express.urlencoded({extended:false}));
         this.app.use(express.json());
         this.app.use(this.manejarCors);
+        this.app.use(passport.initialize());
+        passport.use('autenticacionjwt',pasaporteJwt);
     }
     manejarCors =(req,res,next)=>{
         res.set('Access-Control-Allow-Origin','*');
@@ -37,8 +42,10 @@ class Aplicacion{
     enrutar = ()=>{
         const rutasUsuarios = new RutasUsuarios();
         const rutasSalas = new RutasSalas();
+        const rutasCalendario = new RutasCalendario();
         this.app.use('/usuarios', rutasUsuarios.router);
         this.app.use('/salas', rutasSalas.router);
+        this.app.use('/calendario',rutasCalendario.router);
     }
 }
 

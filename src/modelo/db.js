@@ -64,14 +64,15 @@ const SolicitudesAccesorios = sequelize.define('SolicitudAccesorios',{
 
 const DiasNoHabiles = sequelize.define('DiasNoHabiles',{
     idDia:{type:DataTypes.INTEGER, allowNull:false, autoIncrement:true, unique:true, primaryKey:true},
-    dia:{type:DataTypes.DATE},
+    dia:{type:DataTypes.DATEONLY},
     horaInicio:{type:DataTypes.TIME},
     horaFin:{type:DataTypes.TIME}
 },{timestamps:false, tableName:'diasNoHabiles'})
 
 const Periodo = sequelize.define('Periodo',{
     idPeriodo:{type:DataTypes.INTEGER, allowNull:false, autoIncrement:true, unique:true, primaryKey:true},
-    fin:{type:DataTypes.DATE},
+    inicio:{type:DataTypes.DATEONLY},
+    fin:{type:DataTypes.DATEONLY},
 },{timestamps:false, tableName:'periodo'})
 
 const start = async()=>{
