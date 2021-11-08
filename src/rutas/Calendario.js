@@ -15,7 +15,7 @@ class Calendario {
         try {            
             let periodo = await Periodo.findAll();
             console.log('--->getPeriodo: '+JSON.stringify(periodo))
-            res.status(201).json(periodo);               
+            res.status(200).json(periodo);               
         } catch (error) {
             console.log('error: '+error)
             res.statusMessage = error.msj;

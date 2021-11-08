@@ -38,6 +38,8 @@ class RutasSalas {
             res.status(201).json(turnos) 
         } catch (error) {
             console.log('errror: '+error)
+            res.statusMessage = error.msj;
+            return res.status(error.code ||500).send();
         }
     }
     reservarSala = async(req,res)=>{
@@ -66,7 +68,7 @@ class RutasSalas {
                     },
                 }); 
                 if(reservas.length === 0){
-                    let reserva = await SolicitudesSalas.create({
+                    /*let reserva = await SolicitudesSalas.create({
                         usuario:req.usuario.idUser,
                         comentario:req.body.comentario,
                         materia:req.body.materia,
@@ -77,8 +79,10 @@ class RutasSalas {
                         horaInicio:req.body.horaInicio,
                         horaFin:req.body.horaFin,
                         cantidadAlumnos:req.body.cantAlumnos
-                    });       
-                    console.log('----->reserva: '+JSON.stringify(reserva))        
+                    });   */    
+                    //console.log('----->reserva: '+JSON.stringify(reserva))        
+                    let fechaSolicitud= (new Date()).toJSON().slice(0,19).replace('T',' ');
+                    console.log('-->fechaSolicitud: ',fechaSolicitud)
                     res.status(201).send({ msj: 'Su pedido será revisado por el administrador del laboratorio, le enviaremos un mail para confirmar la reserva.' });
                 }else{
                     console.log('----->Reservas: '+JSON.stringify(reservas))
@@ -144,13 +148,51 @@ class RutasSalas {
             return res.status(error.code||500).send();            
         }
     }
+    resolverReserva = (req,res)=>{
+        try {      
+            if(req.body.accion==='r'){
+                let reserva = await SolicitudesSalas.update({
+                    estado:'CANCELADO'
+                },{
+                    where:{ idSolicitudSala:req.body.idSolicitudSala }
+                })
+            }else if(req.body.accion==='c'){
+                let reserva = await SolicitudesSalas.update({
+                    estado:'CONFIRMADO'
+                },{
+                    where:{ idSolicitudSala:req.body.idSolicitudSala }
+                })
+            }else{
+                return res.status(400).send();   
+            }            
+            console.log('->/SOLICITUDESSALAS/UPDATE->RTA: ',resultado);
+            res.status(201).send({msj:'ok'});
+        } catch (error) {
+            res.statusMessage = error.msj;
+            return res.status(error.code ||500).send();            
+        }
+    }
+    getReservasPendientes = async(req,res)=>{
+        try {
+            console.log('en getEstado')
+            let pendientes = await SolicitudesSalas.findAll({where:{estado:'PENDIENTE'},include:[Salas,Usuarios]});
+            //console.log('getReservasPendientes->pendientes: ',pendientes)
+            res.status(201).json(pendientes) 
+        } catch (error) {
+            console.log('errror: '+error)
+            res.statusMessage = error.msj;
+            return res.status(error.code ||500).send();
+        }
+    }
     rutas(){
         this.router.get('/',this.getSalas);
         this.router.post('/',autenticacionjwt,this.crearSala);
         this.router.put('/',autenticacionjwt,this.actualizar);
         this.router.delete('/',autenticacionjwt,this.eliminar);
         this.router.get('/estado/:idsala/:dia',autenticacionjwt,this.getEstado);
+        this.router.get('/reservaspendientes',autenticacionjwt,this.getReservasPendientes);
         this.router.post('/reservar',autenticacionjwt,this.reservarSala);
+        this.router.post('/resolverreserva',autenticacionjwt,this.resolverReserva)
     }
 }
 
