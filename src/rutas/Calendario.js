@@ -82,20 +82,19 @@ class Calendario {
             if(req.body.accion ==="i"){
                 let dias = req.body.dia.trim().split(',');
                 console.log('dias: ',dias)
-                for (const it of dias) {          
-                    reserva = await DiasNoHabiles.create({dia:req.body.anio+'-'+req.body.mes+'-'+it});
+                for (const it of dias) {       
+                    let dia = new Date(req.body.anio,+req.body.mes-1,it)   
+                    reserva = await DiasNoHabiles.create({dia:dia});
                 }
                 res.status(201).json(reserva) 
             }else{
                 let dias = req.body.dia.trim().split(',');
                 for (const it of dias){
+                    let dia = new Date(req.body.anio,+req.body.mes-1,it) 
                     reserva = await DiasNoHabiles.destroy({
                         where:{
                             [Op.and]:[
-                                {dia:req.body.anio+'-'+req.body.mes+'-'+it}
-                                /*{horaInicio:{[Op.gte]:req.body.horainicio}},
-                                {horaFin:{[Op.lte]:req.body.horafin}},
-                                {dia:req.body.dia}*/
+                                {dia:dia}
                             ]
                         }
                     });
@@ -106,62 +105,6 @@ class Calendario {
             console.log('Error-->'+error)            
         }
     }
-    /*reservarAccesorio = async(req,res)=>{
-        try {
-            console.log('------>reservarSala->req.body: '+JSON.stringify(req.body));   
-            let dia = await DiasNoHabiles.findAll(
-                sequelize.where(sequelize.fn('date',sequelize.col('dia')),sequelize.fn('date',req.body.dia))
-            );
-
-            
-            if(accesorio.length !== 0){
-                let reservas = await SolicitudesAccesorios.findAll({
-                    where:{
-                        [Op.and]:[
-                            {accesorio:req.body.idAccesorio},
-                            sequelize.where(sequelize.fn('date',sequelize.col('fechaAsignada')),sequelize.fn('date',req.body.dia)),
-                            {[Op.or]:[
-                                {[Op.and]:[
-                                    {horaInicio:{[Op.gte]:req.body.horaInicio}},
-                                    {horaInicio:{[Op.lt]:req.body.horaFin}}
-                                ]},
-                                {[Op.and]:[
-                                    {horaFin:{[Op.gte]:req.body.horaInicio}},
-                                    {horaFin:{[Op.lt]:req.body.horaFin}}
-                                ]}
-                            ]}
-                        ]
-                    },
-                }); 
-                if(reservas.length === 0){
-                    let reserva = await SolicitudesAccesorios.create({
-                        usuario:req.usuario.idUser,
-                        comentario:req.body.comentario,
-                        accesorio:req.body.idAccesorio,
-                        cantidad:req.body.cantidad,
-                        materia:req.body.materia,
-                        especialidad:req.body.especialidad,
-                        fechaSolicitud: (new Date()).toJSON().slice(0,19).replace('T',' '),
-                        horaInicio:req.body.horaInicio,
-                        horaFin:req.body.horaFin,
-                        estado:'PENDIENTE',
-                    });       
-                    console.log('----->reserva: '+JSON.stringify(reserva))        
-                    res.status(201).send({ msj: 'Su pedido será revisado por el administrador del laboratorio, le enviaremos un mail para confirmar la reserva.' });
-                }else{
-                    console.log('----->Reservas: '+JSON.stringify(reservas))
-                    res.status(201).send({msj:'El horario elegido ya posee reservas'})
-                }               
-            }else{
-                console.log('----->Reservas: '+JSON.stringify(reservas))
-                res.status(400)
-            }
-        } catch (error) {
-            console.log('error: '+error);
-            res.statusMessage = error.msj;
-            return res.status(error.code ||500).send();
-        }
-    }*/
     rutas(){
         this.router.get('/periodo',this.getPeriodo);
         this.router.get('/diasinhabilitados/:mes',this.getNoHabilitados);

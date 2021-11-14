@@ -1,22 +1,21 @@
 const { Router } = require('express');
-const path = require('path');
-const { start, Salas, SolicitudesSalas, Usuarios } = require('../modelo/db');
+const { start, Accesorios, SolicitudesAccesorios, Usuarios } = require('../modelo/db');
 const { Op } = require('sequelize');
 const sequelize = require('sequelize');
 const { autenticacionjwt } = require('../middlewares/pasaporte');
 
-class RutasSalas {
+class RutasAccesorios {
     constructor() {
         this.router = Router();
         start();
         this.rutas();
     }
-    getSalas = async (req, res) => {
+    getAccesorios = async (req, res) => {
         try {
             //console.log('LOGIN->USUARIO0: ',req)
-            let salas = await Salas.findAll();
-            console.log('LOGIN->USUARIO1: ' + JSON.stringify(salas))
-            res.status(201).json(salas)
+            let accs = await Accesorios.findAll();
+            console.log('LOGIN->USUARIO1: ' + JSON.stringify(accs))
+            res.status(201).json(accs)
         } catch (error) {
             console.log('error: ' + error)
             res.statusMessage = error.msj;
@@ -27,11 +26,11 @@ class RutasSalas {
         console.log('en getEstado0 0')
         try {
             console.log('en getEstado', req.params)
-            let turnos = await SolicitudesSalas.findAll({
+            let turnos = await SolicitudesAccesorios.findAll({
                 where: {
                     [Op.and]: [
                         { estado: 'CONFIRMADO' },
-                        { sala: req.params.idsala },
+                        { accesorio: req.params.idAccesorio },
                         sequelize.where(sequelize.fn('datediff', req.params.dia, sequelize.col('fechaAsignada')), 0)
                     ]
                 }
@@ -44,58 +43,46 @@ class RutasSalas {
             return res.status(error.code || 500).send();
         }
     }
-    reservarSala = async (req, res) => {
+    reservarAccesorio = async (req, res) => {
         try {
             console.log('------>reservarSala->req.body: ' + JSON.stringify(req.body));
             console.log('------>reservarSala->req.usuario: ' + JSON.stringify(req.usuario));
-            let sala = await Salas.findOne({ where: { idSala: req.body.idSala } });
-            console.log('-------->Sala: ' + JSON.stringify(sala))
-            if (sala.length !== 0) {
-                let reservas = await SolicitudesSalas.findAll({
+            let accs = await Accesorios.findOne({ where: { idAccesorio: req.body.idAccesorio } });
+            console.log('-------->Accesorio: ' + JSON.stringify(accs))
+            if (accs.length !== 0) {
+                let reservas = await SolicitudesAccesorios.findAll({
                     where: {
-                        [Op.and]: [
-                            { sala: req.body.idSala },
-                            sequelize.where(sequelize.fn('date', sequelize.col('fechaAsignada')), sequelize.fn('date', req.body.dia)),
-                            {
-                                [Op.or]: [
-                                    {
-                                        [Op.and]: [
-                                            { horaInicio: { [Op.gte]: req.body.horaInicio } },
-                                            { horaInicio: { [Op.lt]: req.body.horaFin } }
-                                        ]
-                                    },
-                                    {
-                                        [Op.and]: [
-                                            { horaFin: { [Op.gte]: req.body.horaInicio } },
-                                            { horaFin: { [Op.lt]: req.body.horaFin } }
-                                        ]
-                                    }
-                                ]
-                            }
+                        [Op.and]: [{ accesorio: req.body.idAccesorio }, sequelize.where(sequelize.fn('date', sequelize.col('fechaAsignada')), sequelize.fn('date', req.body.dia)),
+                        {
+                            [Op.or]: [{ [Op.and]: [{ horaInicio: { [Op.gte]: req.body.horaInicio } }, { horaInicio: { [Op.lt]: req.body.horaFin } }] },
+                            { [Op.and]: [{ horaFin: { [Op.gte]: req.body.horaInicio } }, { horaFin: { [Op.lt]: req.body.horaFin } }] }
+                            ]
+                        }
                         ]
                     },
                 });
-                if (reservas.length === 0) {
-                    let reserva = await SolicitudesSalas.create({
-                        usuario:req.usuario.idUser,
-                        comentario:req.body.comentario,
-                        materia:req.body.materia,
-                        especialidad:req.body.especialidad,
-                        sala:req.body.idSala,
-                        estado:'PENDIENTE',
-                        fechaSolicitud: (new Date()).toJSON().slice(0,19).replace('T',' '),
-                        fechaPedida:req.body.dia,
-                        horaInicio:req.body.horaInicio,
-                        horaFin:req.body.horaFin,
-                        cantidadAlumnos:req.body.cantAlumnos
-                    });   
+                if (reservas.some(e => { return (+accs.cantidad - e.cantidad - req.body.cantidad < 0) })) {
+                    console.log('----->solicitud denegada<-----')
+                    console.log('----->Reservas: ' + JSON.stringify(reservas))
+                    res.status(500).send({ msj: 'El dispositivo no tiene disponibilidad en el horario elegido' })
+                } else {
+                    let reserva = await SolicitudesAccesorios.create({
+                        usuario: req.usuario.idUser,
+                        comentario: req.body.comentario,
+                        materia: req.body.materia,
+                        especialidad: req.body.especialidad,
+                        accesorio: req.body.idAccesorio,
+                        estado: 'PENDIENTE',
+                        fechaSolicitud: (new Date()).toJSON().slice(0, 19).replace('T', ' '),
+                        fechaPedida: req.body.dia,
+                        horaInicio: req.body.horaInicio,
+                        horaFin: req.body.horaFin,
+                        cantidad: req.body.cantidad
+                    });
                     //console.log('----->reserva: '+JSON.stringify(reserva))        
                     let fechaSolicitud = (new Date()).toJSON().slice(0, 19).replace('T', ' ');
                     console.log('-->fechaSolicitud: ', fechaSolicitud)
                     res.status(201).send({ msj: 'Su pedido será revisado por el administrador del laboratorio, le enviaremos un mail para confirmar la reserva.' });
-                } else {
-                    console.log('----->Reservas: ' + JSON.stringify(reservas))
-                    res.status(201).send({ msj: 'El horario elegido ya posee reservas' })
                 }
             } else {
                 console.log('----->Reservas: ' + JSON.stringify(reservas))
@@ -107,17 +94,17 @@ class RutasSalas {
             return res.status(error.code || 500).send();
         }
     }
-    crearSala = async (req, res) => {
+    crearAccesorio = async (req, res) => {
         try {
-            let sala = await Salas.create({
+            let accs = await Accesorios.create({
                 descripcionCorta: req.body.descripcionCorta,
                 descripcionLarga: req.body.descripcionLarga,
                 tipo: req.body.tipo,
-                ubicacion: req.body.ubicacion,
+                cantidad: req.body.cantidad,
                 urlImagen: req.body.urlImagen
             });
-            console.log('POST->SALAS: ' + JSON.stringify(sala))
-            res.status(201).send({ msj: 'sala creada' });
+            console.log('POST->SALAS: ' + JSON.stringify(accs))
+            res.status(201).send({ msj: 'accesorio creado' });
         } catch (error) {
             console.log('error: ' + error)
             res.statusMessage = error.msj;
@@ -125,20 +112,20 @@ class RutasSalas {
         }
     }
     actualizar = async (req, res) => {
-        console.log('PUT->/SALA -->campos: ', req.body)
+        console.log('PUT->/ACCESORIOS-->campos: ', req.body)
         try {
-            let resultado = await Salas.update({
+            let resultado = await Accesorios.update({
                 tipo: req.body.tipo,
                 descripcionLarga: req.body.descripcionLarga,
                 descripcionCorta: req.body.descripcionCorta,
-                ubicacion: req.body.ubicacion,
+                cantidad: req.body.cantidad,
                 urlImagen: req.body.urlImagen
             }, {
                 where: {
-                    idSala: req.body.idSala
+                    idAccesorio: req.body.idAccesorio
                 }
             })
-            console.log('->/SALAS/UPDATE->RTA: ', resultado);
+            console.log('->/ACCESS/UPDATE->RTA: ', resultado);
             res.status(201).send({ msj: 'ok' });
         } catch (error) {
             console.log('error: ' + error)
@@ -148,9 +135,9 @@ class RutasSalas {
     }
     eliminar = async (req, res) => {
         try {
-            console.log('->DELETE->idSala ', req.body.idSala)
-            let borrada = Salas.destroy({ where: { idSala: req.body.idSala } })
-            res.status(201).send({ msj: 'sala borrada con éxito' });
+            console.log('->DELETE->idSala ', req.body.idAccesorio)
+            let borrado = Accesorios.destroy({ where: { idSala: req.body.idAccesorio } })
+            res.status(201).send({ msj: 'accesorio borrado con éxito' });
         } catch (error) {
             console.log('error: ' + error)
             res.statusMessage = error.msj;
@@ -160,26 +147,33 @@ class RutasSalas {
     resolverReserva = async (req, res) => {
         try {
             console.log('------>resolverReserva->req.body: ' + JSON.stringify(req.body));
-            let solicitud = await SolicitudesSalas.findOne({where: { [Op.and]:[ {estado: 'PENDIENTE'},{idSolicitudSala: req.body.idSolicitudSala} ] }});
+            let solicitud = await SolicitudesAccesorios.findOne({
+                where: {
+                    [Op.and]: [
+                        { estado: 'PENDIENTE' },
+                        { idSolicitudSala: req.body.idSolicitudAccesorio }
+                    ]
+                }
+            });
             console.log('------>resolverReserva->solicitud: ', solicitud);
             if (solicitud !== null) {
                 if (req.body.accion === 'r') {
-                    let reserva = await SolicitudesSalas.update({
+                    let reserva = await SolicitudesAccesorios.update({
                         estado: 'CANCELADO',
-                        fechaResolucionSolicitud:(new Date()).toJSON().slice(0,19).replace('T',' '),
+                        fechaResolucionSolicitud: (new Date()).toJSON().slice(0, 19).replace('T', ' '),
                     }, {
-                        where: { idSolicitudSala: req.body.idSolicitudSala }
+                        where: { idSolicitudAccesorio: req.body.idSolicitudAccesorio }
                     });
                     /* let asunto = 'Solicitud de reserva de sala';
                     let contenido = 'Sr./Sra. '+req.body.nombre+', su solicitud de reserva de la sala '+ req.body.nombreSala +' ha sido denegada debido a:\n';
                     contenido += req.body.motivo+'. \nA su disposición. Administración de Laboratorios';              
                     mailer(req.body.mail,asunto,contenido); */
                 } else if (req.body.accion === 'c') {
-                    let reserva = await SolicitudesSalas.update({
+                    let reserva = await SolicitudesAccesorios.update({
                         estado: 'CONFIRMADO',
-                        fechaResolucionSolicitud:(new Date()).toJSON().slice(0,19).replace('T',' '),
+                        fechaResolucionSolicitud: (new Date()).toJSON().slice(0, 19).replace('T', ' '),
                     }, {
-                        where: { idSolicitudSala: req.body.idSolicitudSala }
+                        where: { idSolicitudAccesorio: req.body.idSolicitudAccesorio }
                     })
                     /*    let asunto = 'Solicitud de reserva de sala';
                        let contenido = 'Sr./Sra. '+req.body.nombre+', su solicitud de reserva de la sala '+ req.body.nombreSala +' ha sido confirmada.\n';
@@ -201,7 +195,7 @@ class RutasSalas {
     getReservasPendientes = async (req, res) => {
         try {
             console.log('en getEstado')
-            let pendientes = await SolicitudesSalas.findAll({ where: { estado: 'PENDIENTE' }, include: [Salas, Usuarios] });
+            let pendientes = await SolicitudesAccesorios.findAll({ where: { estado: 'PENDIENTE' }, include: [Accesorios, Usuarios] });
             //console.log('getReservasPendientes->pendientes: ',pendientes)
             res.status(201).json(pendientes)
         } catch (error) {
@@ -211,15 +205,15 @@ class RutasSalas {
         }
     }
     rutas() {
-        this.router.get('/', this.getSalas);
-        this.router.post('/', autenticacionjwt, this.crearSala);
+        this.router.get('/', this.getAccesorios);
+        this.router.post('/', autenticacionjwt, this.crearAccesorio);
         this.router.put('/', autenticacionjwt, this.actualizar);
         this.router.delete('/', autenticacionjwt, this.eliminar);
-        this.router.get('/estado/:idsala/:dia', autenticacionjwt, this.getEstado);
+        this.router.get('/estado/:idAccesorio/:dia', autenticacionjwt, this.getEstado);
         this.router.get('/reservaspendientes', autenticacionjwt, this.getReservasPendientes);
-        this.router.post('/reservar', autenticacionjwt, this.reservarSala);
+        this.router.post('/reservar', autenticacionjwt, this.reservarAccesorio);
         this.router.post('/resolverreserva', autenticacionjwt, this.resolverReserva)
     }
 }
 
-module.exports = RutasSalas;
+module.exports = RutasAccesorios;

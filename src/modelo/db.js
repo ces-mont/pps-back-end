@@ -38,11 +38,12 @@ const SolicitudesSalas = sequelize.define('SolicitudesSalas',{
     idSolicitudSala:{type: DataTypes.INTEGER, allowNull:false, autoIncrement:true ,unique:true, primaryKey:true},
     comentario:{type: DataTypes.TEXT},
     fechaSolicitud:{type: DataTypes.DATE},
+    fechaPedida:{type: DataTypes.DATE},
     horaInicio:{type: DataTypes.TIME},
     horaFin:{type: DataTypes.TIME},
     estado:{type: DataTypes.STRING(8)},
     fechaAsignada:{type: DataTypes.DATE},
-    fechaConfirmacionSolicitud:{type: DataTypes.DATE},
+    fechaResolucionSolicitud:{type: DataTypes.DATE},
     cantidadAlumnos:{type: DataTypes.INTEGER},
     materia:{type:DataTypes.STRING(80)},
     especialidad:{type:DataTypes.STRING(50)}
@@ -55,11 +56,12 @@ const SolicitudesAccesorios = sequelize.define('SolicitudAccesorios',{
     materia:{type:DataTypes.STRING(80)},
     especialidad:{type:DataTypes.STRING(50)},
     fechaSolicitud:{type: DataTypes.DATE},
+    fechaPedida:{type: DataTypes.DATE},
     horaInicio:{type: DataTypes.TIME},
     horaFin:{type: DataTypes.TIME},
     estado:{type: DataTypes.STRING(8)},
     fechaAsignada:{type: DataTypes.DATE},
-    fechaConfirmacionSolicitud:{type: DataTypes.DATE},
+    fechaResolucionSolicitud:{type: DataTypes.DATE},
 },{timestamps:false, tableName:'solicitudesAccesorios'});
 
 const DiasNoHabiles = sequelize.define('DiasNoHabiles',{

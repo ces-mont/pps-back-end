@@ -4,6 +4,7 @@ const path = require('path');
 const RutasUsuarios = require('./rutas/Usuarios');
 const RutasSalas = require('./rutas/Salas');
 const RutasCalendario = require('./rutas/Calendario');
+const RutasAccesorios = require('./rutas/Accesorios');
 const {pasaporteJwt} = require ('./middlewares/pasaporte');
 const passport = require('passport');
 
@@ -43,9 +44,11 @@ class Aplicacion{
         const rutasUsuarios = new RutasUsuarios();
         const rutasSalas = new RutasSalas();
         const rutasCalendario = new RutasCalendario();
+        const rutasAccesorios = new RutasAccesorios();
         this.app.use('/usuarios', rutasUsuarios.router);
         this.app.use('/salas', rutasSalas.router);
         this.app.use('/calendario',rutasCalendario.router);
+        this.app.use('/accesorios',rutasAccesorios.router);
     }
 }
 
