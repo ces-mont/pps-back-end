@@ -19,7 +19,7 @@ class Aplicacion{
         this.app.set('puerto',process.env.PORT || 5000);
     }
     iniciar = ()=>{
-        this.app.listen(this.app.get('puerto'),()=>{console.log('escuchando en el puerto:'+this.app.get('puerto'))})
+        this.app.listen(this.app.get('puerto'))
     }
     setMiddlewares = ()=>{
         this.app.use(morgan('dev'));

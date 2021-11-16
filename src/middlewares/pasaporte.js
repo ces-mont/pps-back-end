@@ -25,7 +25,6 @@ const autenticacionjwt = (req,res,next) => {
             error.message = 'Error en el loggeo';
             next(error);
         }else{
-            console.log('----->autenticadoJwt ok...')
             req.usuario = user.usuario;
             next();
         }     

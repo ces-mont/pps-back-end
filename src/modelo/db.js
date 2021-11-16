@@ -1,5 +1,4 @@
 const {Sequelize, DataTypes} = require('sequelize');
-console.log('DATABASE_NAME, DATABASE_USER, DATABASE_PASS: '+process.env.DATABASE_NAME+' - '+process.env.DATABASE_USER+' - '+process.env.DATABASE_PASS)
 const sequelize = new Sequelize(process.env.DATABASE_NAME,process.env.DATABASE_USER,process.env.DATABASE_PASS,{
     host: process.env.DATABASE_HOSTNAME,
     dialect: 'mysql'
@@ -90,9 +89,7 @@ const start = async()=>{
         SolicitudesAccesorios.belongsTo(Accesorios,{foreignKey:'accesorio'});
         //await sequelize.sync({force:false})
         await sequelize.authenticate();
-    }catch(err){
-        console.log('->Error en conexion a la BD: '+err)
-    }    
+    }catch(err){  };
 }
 
 module.exports = {start,Usuarios,Accesorios,Salas,SolicitudesSalas,SolicitudesAccesorios,DiasNoHabiles,Periodo};

@@ -14,20 +14,15 @@ class RutasAccesorios {
     }
     getAccesorios = async (req, res) => {
         try {
-            //console.log('LOGIN->USUARIO0: ',req)
             let accs = await Accesorios.findAll();
-            console.log('LOGIN->USUARIO1: ' + JSON.stringify(accs))
             res.status(201).json(accs)
         } catch (error) {
-            console.log('error: ' + error)
             res.statusMessage = error.msj;
             return res.status(error.code || 500).send();
         }
     }
     getEstado = async (req, res) => {
-        console.log('en getEstado0 0')
         try {
-            console.log('en getEstado', req.params)
             let turnos = await SolicitudesAccesorios.findAll({
                 where: {
                     [Op.and]: [
@@ -37,20 +32,15 @@ class RutasAccesorios {
                     ]
                 }
             })
-            //console.log('solicitud: ',sala)
             res.status(201).json(turnos)
         } catch (error) {
-            console.log('errror: ' + error)
             res.statusMessage = error.msj;
             return res.status(error.code || 500).send();
         }
     }
     reservarAccesorio = async (req, res) => {
         try {
-            console.log('------>reservarSala->req.body: ' + JSON.stringify(req.body));
-            console.log('------>reservarSala->req.usuario: ' + JSON.stringify(req.usuario));
             let accs = await Accesorios.findOne({ where: { idAccesorio: req.body.idAccesorio } });
-            console.log('-------->Accesorio: ' + JSON.stringify(accs))
             if (accs.length !== 0) {
                 let reservas = await SolicitudesAccesorios.findAll({
                     where: {
@@ -64,8 +54,6 @@ class RutasAccesorios {
                     },
                 });
                 if (reservas.some(e => { return (+accs.cantidad - e.cantidad - req.body.cantidad < 0) })) {
-                    console.log('----->solicitud denegada<-----')
-                    console.log('----->Reservas: ' + JSON.stringify(reservas))
                     res.status(500).send({ msj: 'El dispositivo no tiene disponibilidad en el horario elegido' })
                 } else {
                     let reserva = await SolicitudesAccesorios.create({
@@ -80,18 +68,14 @@ class RutasAccesorios {
                         horaInicio: req.body.horaInicio,
                         horaFin: req.body.horaFin,
                         cantidad: req.body.cantidad
-                    });
-                    //console.log('----->reserva: '+JSON.stringify(reserva))        
+                    });     
                     let fechaSolicitud = (new Date()).toJSON().slice(0, 19).replace('T', ' ');
-                    console.log('-->fechaSolicitud: ', fechaSolicitud)
                     res.status(201).send({ msj: 'Su pedido será revisado por el administrador del laboratorio, le enviaremos un mail para confirmar la reserva.' });
                 }
             } else {
-                console.log('----->Reservas: ' + JSON.stringify(reservas))
                 res.status(400)
             }
         } catch (error) {
-            console.log('error: ' + error);
             res.statusMessage = error.msj;
             return res.status(error.code || 500).send();
         }
@@ -105,16 +89,13 @@ class RutasAccesorios {
                 cantidad: req.body.cantidad,
                 urlImagen: req.body.urlImagen
             });
-            console.log('POST->SALAS: ' + JSON.stringify(accs))
             res.status(201).send({ msj: 'accesorio creado' });
         } catch (error) {
-            console.log('error: ' + error)
             res.statusMessage = error.msj;
             return res.status(error.code || 500).send();
         }
     }
     actualizar = async (req, res) => {
-        console.log('PUT->/ACCESORIOS-->campos: ', req.body)
         try {
             let resultado = await Accesorios.update({
                 tipo: req.body.tipo,
@@ -127,34 +108,28 @@ class RutasAccesorios {
                     idAccesorio: req.body.idAccesorio
                 }
             })
-            console.log('->/ACCESS/UPDATE->RTA: ', resultado);
             res.status(201).send({ msj: 'ok' });
         } catch (error) {
-            console.log('error: ' + error)
             res.statusMessage = error.msj;
             return res.status(error.code || 500).send();
         }
     }
     eliminar = async (req, res) => {
         try {
-            console.log('->DELETE->idSala ', req.body.idAccesorio)
             let borrado = Accesorios.destroy({ where: { idSala: req.body.idAccesorio } })
             res.status(201).send({ msj: 'accesorio borrado con éxito' });
         } catch (error) {
-            console.log('error: ' + error)
             res.statusMessage = error.msj;
             return res.status(error.code || 500).send();
         }
     }
     resolverReserva = async (req, res) => {
         try {
-            console.log('-->resolverReserva->req.body: ',req.body)
             let user = await Usuarios.findAll({ where: { idUsuario: req.body.idusuario } });
             let solicitud = await SolicitudesAccesorios.findOne({ where: { [Op.and]: [{ estado: 'PENDIENTE' }, { idSolicitudAccesorio: req.body.idSolicitudAccesorio }] } });
             let peticionador = await Usuarios.findOne({ where: { idUsuario: solicitud.usuario } })
             const match = await bcrypt.compare(req.body.contrasenia, user[0].contrasenia);
             if (match) { 
-                console.log('--->match ok')
                 if (req.body.accion === 'r') {
                     if (user[0].rol === 'ADMI') {
                         if (solicitud !== null) {
@@ -174,16 +149,12 @@ class RutasAccesorios {
                         contenido += 'Motivo: ' + req.body.motivo + '\nA su disposición. \nAdministración de Laboratorios';
                         mailer(peticionador.mail, asunto, contenido);
                     } else {
-                        console.log('------>resolverReserva-> match 4')
                         res.statusMessage = 'No estas habilitado para realizar esta acción';
                         return res.status(401).send()
                     }
                 } else if (req.body.accion === 'c') {
-                console.log('--->accion es C')
                     if (user[0].rol === 'ADMI') {
-                        console.log('--->user es ADMI')
                         if (solicitud !== null) {
-                            console.log('--->solicitud no es NULL')
                             SolicitudesAccesorios.update({ estado: 'CONFIRMADO', fechaAsignada: solicitud.fechaPedida, fechaResolucionSolicitud: (new Date()).toJSON().slice(0, 19).replace('T', ' '), }, {
                                 where: { idSolicitudAccesorio: req.body.idSolicitudAccesorio}
                             })
@@ -209,25 +180,20 @@ class RutasAccesorios {
                     return res.status(400).send();
                 }
             } else {
-                console.log('match error')
                 res.statusMessage = 'Error en el usuario o contraseña';
                 return res.status(401).send();
             }
 
         } catch (error) {
-            console.log('--->error-catch:', error)
             res.statusMessage = error.msj;
             return res.status(error.code || 500).send();
         }
     }
     getReservasPendientes = async (req, res) => {
         try {
-            console.log('en getEstado')
             let pendientes = await SolicitudesAccesorios.findAll({ where: { estado: 'PENDIENTE' }, include: [Accesorios, Usuarios] });
-            //console.log('getReservasPendientes->pendientes: ',pendientes)
             res.status(201).json(pendientes)
         } catch (error) {
-            console.log('errror: ' + error)
             res.statusMessage = error.msj;
             return res.status(error.code || 500).send();
         }

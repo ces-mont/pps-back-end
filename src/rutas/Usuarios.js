@@ -11,13 +11,7 @@ class RutasUsuarios {
     } 
     login = async (req,res)=>{
         try {
-            console.log('POST->/LOGIN/USUARIO1-->name: '+req.body.nombre+' contrasenia: '+req.body.contrasenia)
             var usuario = await Usuarios.findOne({where:{nombre:req.body.nombre}});
-            /* console.log('LOGIN->USUARIO1: '+JSON.stringify(usuario));
-            console.log('LOGIN->USUARIO1-contrasenia: '+(usuario.contrasenia));
-            let sal = await bcrypt.genSalt(10);
-            let pass = await bcrypt.hash(req.body.contrasenia, sal);            
-            console.log('LOGIN->USUARIO1-contrasenia-hasheada: '+pass); */
             bcrypt.compare(req.body.contrasenia, usuario.contrasenia, (err,rta)=>{
                 if(rta){
                     if(err) throw err;
@@ -34,7 +28,6 @@ class RutasUsuarios {
                 }
             })
         } catch (error) {
-            console.log('Error->'+error.msj);
             res.statusMessage = error.msj;
             return res.status(error.code||500).send();
         }
