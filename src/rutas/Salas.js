@@ -4,6 +4,8 @@ const { start, Salas, SolicitudesSalas, Usuarios } = require('../modelo/db');
 const { Op } = require('sequelize');
 const sequelize = require('sequelize');
 const { autenticacionjwt } = require('../middlewares/pasaporte');
+const bcrypt = require('bcrypt');
+const mailer = require('../utilidades/mailer');
 
 class RutasSalas {
     constructor() {
@@ -77,18 +79,18 @@ class RutasSalas {
                 });
                 if (reservas.length === 0) {
                     let reserva = await SolicitudesSalas.create({
-                        usuario:req.usuario.idUser,
-                        comentario:req.body.comentario,
-                        materia:req.body.materia,
-                        especialidad:req.body.especialidad,
-                        sala:req.body.idSala,
-                        estado:'PENDIENTE',
-                        fechaSolicitud: (new Date()).toJSON().slice(0,19).replace('T',' '),
-                        fechaPedida:req.body.dia,
-                        horaInicio:req.body.horaInicio,
-                        horaFin:req.body.horaFin,
-                        cantidadAlumnos:req.body.cantAlumnos
-                    });   
+                        usuario: req.usuario.idUser,
+                        comentario: req.body.comentario,
+                        materia: req.body.materia,
+                        especialidad: req.body.especialidad,
+                        sala: req.body.idSala,
+                        estado: 'PENDIENTE',
+                        fechaSolicitud: (new Date()).toJSON().slice(0, 19).replace('T', ' '),
+                        fechaPedida: req.body.dia,
+                        horaInicio: req.body.horaInicio,
+                        horaFin: req.body.horaFin,
+                        cantidadAlumnos: req.body.cantAlumnos
+                    });
                     //console.log('----->reserva: '+JSON.stringify(reserva))        
                     let fechaSolicitud = (new Date()).toJSON().slice(0, 19).replace('T', ' ');
                     console.log('-->fechaSolicitud: ', fechaSolicitud)
@@ -159,41 +161,67 @@ class RutasSalas {
     }
     resolverReserva = async (req, res) => {
         try {
-            console.log('------>resolverReserva->req.body: ' + JSON.stringify(req.body));
-            let solicitud = await SolicitudesSalas.findOne({where: { [Op.and]:[ {estado: 'PENDIENTE'},{idSolicitudSala: req.body.idSolicitudSala} ] }});
-            console.log('------>resolverReserva->solicitud: ', solicitud);
-            if (solicitud !== null) {
+            let user = await Usuarios.findAll({ where: { idUsuario: req.body.idusuario } });
+            let solicitud = await SolicitudesSalas.findOne({ where: { [Op.and]: [{ estado: 'PENDIENTE' }, { idSolicitudSala: req.body.idSolicitudSala }] } });
+            let peticionador = await Usuarios.findOne({where: {idUsuario: solicitud.usuario}})
+            const match = await bcrypt.compare(req.body.contrasenia, user[0].contrasenia);
+            if (match) {
                 if (req.body.accion === 'r') {
-                    let reserva = await SolicitudesSalas.update({
-                        estado: 'CANCELADO',
-                        fechaResolucionSolicitud:(new Date()).toJSON().slice(0,19).replace('T',' '),
-                    }, {
-                        where: { idSolicitudSala: req.body.idSolicitudSala }
-                    });
-                    /* let asunto = 'Solicitud de reserva de sala';
-                    let contenido = 'Sr./Sra. '+req.body.nombre+', su solicitud de reserva de la sala '+ req.body.nombreSala +' ha sido denegada debido a:\n';
-                    contenido += req.body.motivo+'. \nA su disposición. Administración de Laboratorios';              
-                    mailer(req.body.mail,asunto,contenido); */
+                    if (user[0].rol === 'ADMI') {
+                        if (solicitud !== null) {
+                            SolicitudesSalas.update({ estado: 'CANCELADO', fechaResolucionSolicitud: (new Date()).toJSON().slice(0, 19).replace('T', ' '), }, {
+                                where: { idSolicitudSala: req.body.idSolicitudSala }
+                            })
+                                .then(rta => {
+                                    res.status(201).json({ msj: 'solicitud cancelada' })
+                                })
+                                .catch((err) => {
+                                    res.statusMessage = err.msj || err;
+                                    res.status(409).send()
+                                });
+                        }
+                        let asunto = 'Solicitud de reserva de sala';
+                        let contenido = 'Sr./Sra. '+peticionador.nombre+', su solicitud de reserva de sala de laboratorio ha sido rechazada.\n';
+                        contenido += 'Motivo: '+req.body.motivo+'\nA su disposición. \nAdministración de Laboratorios';   
+                        mailer(peticionador.mail,asunto,contenido); 
+                    } else {
+                        console.log('------>resolverReserva-> match 4')
+                        res.statusMessage = 'No estas habilitado para realizar esta acción';
+                        return res.status(401).send()
+                    }
                 } else if (req.body.accion === 'c') {
-                    let reserva = await SolicitudesSalas.update({
-                        estado: 'CONFIRMADO',
-                        fechaResolucionSolicitud:(new Date()).toJSON().slice(0,19).replace('T',' '),
-                    }, {
-                        where: { idSolicitudSala: req.body.idSolicitudSala }
-                    })
-                    /*    let asunto = 'Solicitud de reserva de sala';
-                       let contenido = 'Sr./Sra. '+req.body.nombre+', su solicitud de reserva de la sala '+ req.body.nombreSala +' ha sido confirmada.\n';
-                       contenido += 'Fecha y hora de reserva: '+req.body.+'. \nA su disposición. Administración de Laboratorios';              
-                       mailer(req.body.mail,asunto,contenido); */
+                    if (user[0].rol === 'ADMI') {
+                        if (solicitud !== null) {
+                            SolicitudesSalas.update({ estado: 'CONFIRMADO', fechaAsignada: solicitud.fechaPedida,fechaResolucionSolicitud: (new Date()).toJSON().slice(0, 19).replace('T', ' '), }, {
+                                where: { idSolicitudSala: req.body.idSolicitudSala }
+                            })
+                                .then(rta => {
+                                    res.status(201).json({ msj: 'solicitud confirmada' })
+                                })
+                                .catch((err) => {
+                                    res.statusMessage = err.msj || err;
+                                    res.status(409).send()
+                                });
+                        }
+                        let asunto = 'Solicitud de reserva de sala';
+                        let contenido = 'Sr./Sra. '+peticionador.nombre+', su solicitud de reserva de sala de laboratorio ha sido aceptada.\n';
+                        contenido += 'RESERVA OTORGADA. DIA: '+solicitud.fechaPedida+' - HORARIO:'+solicitud.horaInicio+' a '+solicitud.horaFin+' )';
+                        contenido += '\nA su disposición. \nAdministración de Laboratorios';   
+                        mailer(peticionador.mail,asunto,contenido); 
+                        res.status(201).json({msj:'solicitud resuelta'})
+                    } else {
+                        res.statusMessage = 'No estas habilitado para realizar esta acción';
+                        return res.status(401).send()
+                    }
                 } else {
                     return res.status(400).send();
                 }
             } else {
-                return res.status(400).send();
+                res.statusMessage = 'Error en el usuario o contraseña';
+                return res.status(401).send();
             }
-            //console.log('->/SOLICITUDESSALAS/UPDATE->RTA: ',resultado);
-            res.status(201).send({ msj: 'ok' });
         } catch (error) {
+            console.log('error try-> ', error)
             res.statusMessage = error.msj;
             return res.status(error.code || 500).send();
         }

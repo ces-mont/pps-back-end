@@ -3,6 +3,8 @@ const { start, Accesorios, SolicitudesAccesorios, Usuarios } = require('../model
 const { Op } = require('sequelize');
 const sequelize = require('sequelize');
 const { autenticacionjwt } = require('../middlewares/pasaporte');
+const bcrypt = require('bcrypt');
+const mailer = require('../utilidades/mailer');
 
 class RutasAccesorios {
     constructor() {
@@ -146,48 +148,74 @@ class RutasAccesorios {
     }
     resolverReserva = async (req, res) => {
         try {
-            console.log('------>resolverReserva->req.body: ' + JSON.stringify(req.body));
-            let solicitud = await SolicitudesAccesorios.findOne({
-                where: {
-                    [Op.and]: [
-                        { estado: 'PENDIENTE' },
-                        { idSolicitudSala: req.body.idSolicitudAccesorio }
-                    ]
-                }
-            });
-            console.log('------>resolverReserva->solicitud: ', solicitud);
-            if (solicitud !== null) {
+            console.log('-->resolverReserva->req.body: ',req.body)
+            let user = await Usuarios.findAll({ where: { idUsuario: req.body.idusuario } });
+            let solicitud = await SolicitudesAccesorios.findOne({ where: { [Op.and]: [{ estado: 'PENDIENTE' }, { idSolicitudAccesorio: req.body.idSolicitudAccesorio }] } });
+            let peticionador = await Usuarios.findOne({ where: { idUsuario: solicitud.usuario } })
+            const match = await bcrypt.compare(req.body.contrasenia, user[0].contrasenia);
+            if (match) { 
+                console.log('--->match ok')
                 if (req.body.accion === 'r') {
-                    let reserva = await SolicitudesAccesorios.update({
-                        estado: 'CANCELADO',
-                        fechaResolucionSolicitud: (new Date()).toJSON().slice(0, 19).replace('T', ' '),
-                    }, {
-                        where: { idSolicitudAccesorio: req.body.idSolicitudAccesorio }
-                    });
-                    /* let asunto = 'Solicitud de reserva de sala';
-                    let contenido = 'Sr./Sra. '+req.body.nombre+', su solicitud de reserva de la sala '+ req.body.nombreSala +' ha sido denegada debido a:\n';
-                    contenido += req.body.motivo+'. \nA su disposición. Administración de Laboratorios';              
-                    mailer(req.body.mail,asunto,contenido); */
+                    if (user[0].rol === 'ADMI') {
+                        if (solicitud !== null) {
+                            SolicitudesAccesorios.update({ estado: 'CANCELADO', fechaResolucionSolicitud: (new Date()).toJSON().slice(0, 19).replace('T', ' '), }, {
+                                where: { idSolicitudAccesorio: req.body.idSolicitudAccesorio}
+                            })
+                                .then(rta => {
+                                    res.status(201).json({ msj: 'solicitud cancelada' })
+                                })
+                                .catch((err) => {
+                                    res.statusMessage = err.msj || err;
+                                    res.status(409).send()
+                                });
+                        }
+                        let asunto = 'Solicitud de reserva de dispositivo';
+                        let contenido = 'Sr./Sra. ' + peticionador.nombre + ', su solicitud de reserva de dispositivo ha sido rechazada.\n';
+                        contenido += 'Motivo: ' + req.body.motivo + '\nA su disposición. \nAdministración de Laboratorios';
+                        mailer(peticionador.mail, asunto, contenido);
+                    } else {
+                        console.log('------>resolverReserva-> match 4')
+                        res.statusMessage = 'No estas habilitado para realizar esta acción';
+                        return res.status(401).send()
+                    }
                 } else if (req.body.accion === 'c') {
-                    let reserva = await SolicitudesAccesorios.update({
-                        estado: 'CONFIRMADO',
-                        fechaResolucionSolicitud: (new Date()).toJSON().slice(0, 19).replace('T', ' '),
-                    }, {
-                        where: { idSolicitudAccesorio: req.body.idSolicitudAccesorio }
-                    })
-                    /*    let asunto = 'Solicitud de reserva de sala';
-                       let contenido = 'Sr./Sra. '+req.body.nombre+', su solicitud de reserva de la sala '+ req.body.nombreSala +' ha sido confirmada.\n';
-                       contenido += 'Fecha y hora de reserva: '+req.body.+'. \nA su disposición. Administración de Laboratorios';              
-                       mailer(req.body.mail,asunto,contenido); */
+                console.log('--->accion es C')
+                    if (user[0].rol === 'ADMI') {
+                        console.log('--->user es ADMI')
+                        if (solicitud !== null) {
+                            console.log('--->solicitud no es NULL')
+                            SolicitudesAccesorios.update({ estado: 'CONFIRMADO', fechaAsignada: solicitud.fechaPedida, fechaResolucionSolicitud: (new Date()).toJSON().slice(0, 19).replace('T', ' '), }, {
+                                where: { idSolicitudAccesorio: req.body.idSolicitudAccesorio}
+                            })
+                                .then(rta => {
+                                    res.status(201).json({ msj: 'solicitud confirmada' })
+                                })
+                                .catch((err) => {
+                                    res.statusMessage = err.msj || err;
+                                    res.status(409).send()
+                                });
+                        }
+                        let asunto = 'Solicitud de reserva de dispositivo';
+                        let contenido = 'Sr./Sra. ' + peticionador.nombre + ', su solicitud de reserva de dispositivos ha sido aceptada.\n';
+                        contenido += 'RESERVA OTORGADA. DIA: ' + solicitud.fechaPedida + ' - HORARIO:' + solicitud.horaInicio + ' a ' + solicitud.horaFin + ' )';
+                        contenido += '\nA su disposición. \nAdministración de Laboratorios';
+                        mailer(peticionador.mail, asunto, contenido);
+                        res.status(201).json({ msj: 'solicitud resuelta' })
+                    } else {
+                        res.statusMessage = 'No estas habilitado para realizar esta acción';
+                        return res.status(401).send()
+                    }
                 } else {
                     return res.status(400).send();
                 }
             } else {
-                return res.status(400).send();
+                console.log('match error')
+                res.statusMessage = 'Error en el usuario o contraseña';
+                return res.status(401).send();
             }
-            //console.log('->/SOLICITUDESSALAS/UPDATE->RTA: ',resultado);
-            res.status(201).send({ msj: 'ok' });
+
         } catch (error) {
+            console.log('--->error-catch:', error)
             res.statusMessage = error.msj;
             return res.status(error.code || 500).send();
         }
