@@ -34,8 +34,10 @@ class Calendario {
     setPeriodo = async(req,res)=>{
         try {
             let cant = await Periodo.count();
+            let inicio = (req.body.inicio==null||req.body.inicio=='')?req.body.fin:req.body.inicio;
+            let fin = (req.body.fin==null||req.body.fin=='')?req.body.inicio:req.body.fin
             if(cant === 0){
-                let reserva = await Periodo.create({fin:req.body.fin,inicio:req.body.inicio});
+                let reserva = await Periodo.create({fin:fin,inicio:inicio});
             }else{
                 let prev = await Periodo.update({fin:req.body.fin, inicio:req.body.inicio},{where:{fin:{[Op.not]:null}}})
             }     
